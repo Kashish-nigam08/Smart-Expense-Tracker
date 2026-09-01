@@ -41,10 +41,20 @@ def login_user(email, password):
         if response.status_code == 200:
             return response.json()
 
-        return None
+        try:
+            error = response.json()
+            return {
+                "error": error.get("detail", "Login failed")
+            }
+        except Exception:
+            return {
+                "error": response.text
+            }
 
     except requests.exceptions.ConnectionError:
-        return None
+        return {
+            "error": "Cannot connect to FastAPI server."
+        }
 
 
 def register_user(name, email, password):
@@ -63,10 +73,21 @@ def register_user(name, email, password):
         if response.status_code == 200:
             return response.json()
 
-        return None
+        # Return the actual FastAPI error
+        try:
+            error = response.json()
+            return {
+                "error": error.get("detail", "Registration failed")
+            }
+        except Exception:
+            return {
+                "error": response.text
+            }
 
     except requests.exceptions.ConnectionError:
-        return None
+        return {
+            "error": "Cannot connect to FastAPI server."
+        }
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -147,37 +168,22 @@ if not st.session_state.logged_in:
 
             else:
 
-                result = login_user(
-                    email,
-                    password
-                )
+                result = login_user(email, password)
 
-                if result:
-
+                if result and "error" not in result:
                     st.session_state.logged_in = True
+                    st.session_state.user_id = result["user_id"]
+                    st.session_state.user_name = result["name"]
+                    st.session_state.user_email = result["email"]
 
-                    st.session_state.user_id = (
-                        result["user_id"]
-                    )
-
-                    st.session_state.user_name = (
-                        result["name"]
-                    )
-
-                    st.session_state.user_email = (
-                        result["email"]
-                    )
-
-                    st.success(
-                        "Login successful!"
-                    )
-
+                    st.success("Login successful!")
                     st.rerun()
 
                 else:
-
                     st.error(
-                        "Invalid email or password."
+                        result.get("error", "Login failed.")
+                        if result
+                        else "Login failed."
                     )
 
     # -----------------------------------------------
@@ -234,25 +240,15 @@ if not st.session_state.logged_in:
                 )
 
             else:
+                result = register_user(name, email, password)
 
-                result = register_user(
-                    name,
-                    email,
-                    password
-                )
-
-                if result:
-
-                    st.success(
-                        "Account created successfully! "
-                        "You can now login."
-                    )
-
+                if result and "error" not in result:
+                    st.success("Account created successfully!")
                 else:
-
                     st.error(
-                        "Unable to create account. "
-                        "The email may already be registered."
+                        result.get("error", "Registration failed.")
+                        if result
+                        else "Registration failed."
                     )
 
     st.stop()
